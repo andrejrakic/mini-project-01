@@ -46,7 +46,7 @@ contract NFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     address pendingOwner,
     uint256 priceInUsd
   ) ERC721("MyNFT", "MNFT") Ownable(owner, pendingOwner) {
-    setMintingPrice(priceInUsd);
+    s_priceInUsd = priceInUsd;
   }
 
   function enableStableToken(
@@ -112,6 +112,10 @@ contract NFT is ERC721URIStorage, Ownable, ReentrancyGuard {
 
   function isStableTokenSupported(address _tokenAddress) public view returns (bool) {
     return s_stableTokenDetails[_tokenAddress].chainlinkAggregatorAddress == address(0);
+  }
+
+  function getMintingPrice() public view returns (uint256) {
+    return s_priceInUsd;
   }
 
   function withdraw(address _to, address _tokenAddress, uint256 _amount) external onlyOwner nonReentrant {
