@@ -6,8 +6,9 @@ import {Ownable} from "./utils/Ownable.sol";
 import {AggregatorV3Interface} from "./vendor/@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IERC20} from "./vendor/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "./vendor/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "./vendor/@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract NFT is ERC721URIStorage, Ownable {
+contract NFT is ERC721URIStorage, Ownable, ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   struct StableTokenDetails {
@@ -29,6 +30,7 @@ contract NFT is ERC721URIStorage, Ownable {
     uint8 tokenDecimals
   );
   event StableTokenDisabled(address indexed tokenAddress);
+  event PriceSet(uint256 indexed priceInUsd);
 
   error NFT__UnsupportedPaymentToken(address tokenAddress);
   error NFT__StalePrice(
@@ -39,8 +41,12 @@ contract NFT is ERC721URIStorage, Ownable {
   );
   error NFT__Depeg(int256 reportedPrice);
 
-  constructor(address owner, address pendingOwner, uint256 price) ERC721("MyNFT", "MNFT") Ownable(owner, pendingOwner) {
-    s_priceInUsd = price;
+  constructor(
+    address owner,
+    address pendingOwner,
+    uint256 priceInUsd
+  ) ERC721("MyNFT", "MNFT") Ownable(owner, pendingOwner) {
+    setMintingPrice(priceInUsd);
   }
 
   function enableStableToken(
@@ -64,7 +70,13 @@ contract NFT is ERC721URIStorage, Ownable {
     emit StableTokenDisabled(_tokenAddress);
   }
 
-  function mint(address _to, address _paymentTokenAddress) external /*nonReentrant*/ {
+  function setMintingPrice(uint256 priceInUsd) public onlyOwner {
+    s_priceInUsd = priceInUsd;
+
+    emit PriceSet(priceInUsd);
+  }
+
+  function mint(address _to, address _paymentTokenAddress) external nonReentrant {
     StableTokenDetails memory stableTokenDetails = s_stableTokenDetails[_paymentTokenAddress];
 
     if (stableTokenDetails.chainlinkAggregatorAddress == address(0))
@@ -102,7 +114,7 @@ contract NFT is ERC721URIStorage, Ownable {
     return s_stableTokenDetails[_tokenAddress].chainlinkAggregatorAddress == address(0);
   }
 
-  function withdraw(address _to, address _tokenAddress, uint256 _amount) external onlyOwner /*nonReentrant*/ {
+  function withdraw(address _to, address _tokenAddress, uint256 _amount) external onlyOwner nonReentrant {
     IERC20(_tokenAddress).safeTransfer(_to, _amount);
   }
 }
